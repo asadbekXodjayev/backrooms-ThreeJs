@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" fill="#0a0a07"/>
+  <rect x="4" y="4" width="24" height="24" fill="#c9b454"/>
+  <rect x="4" y="4" width="24" height="24" fill="none" stroke="#7a6a2c" stroke-width="1"/>
+  <!-- perspective hallway hint -->
+  <polygon points="13,13 19,13 16,16" fill="#0a0a07" opacity="0.55"/>
+  <rect x="15" y="15" width="2" height="9" fill="#0a0a07" opacity="0.5"/>
+  <!-- fluorescent panel -->
+  <rect x="14" y="6" width="4" height="2" fill="#fffce0"/>
+</svg>

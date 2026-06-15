@@ -1,0 +1,22 @@
+{
+  "name": "backrooms-threejs",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "The Backrooms — a first-person liminal-horror Three.js browser game (sealed infinite procedural maze).",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.169.0",
+    "playwright": "^1.60.0",
+    "typescript": "^5.4.5",
+    "vite": "^5.4.0"
+  }
+}

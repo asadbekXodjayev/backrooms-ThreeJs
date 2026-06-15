@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.log
+npm-debug.log*
+
+# QA generated artifacts (scripts are tracked, outputs are not)
+qa/shots/
+qa/_maze.mjs
