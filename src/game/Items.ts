@@ -11,6 +11,8 @@ export interface Interactable {
   range: number;
   done: boolean;
   hidden?: boolean;
+  isExit?: boolean; // re-anchors near the player if they wander too far
+  baseY?: number;
   prompt(game: Game): string | null;
   interact(game: Game): void;
   tick?(dt: number, t: number): void;
@@ -28,6 +30,8 @@ export class ItemManager {
   group = new THREE.Group();
   private items: Interactable[] = [];
   private t = 0;
+  private reanchorCD = 0;
+  private reanchorN = 0;
   valvesTurned = 0;
 
   constructor(private scene: THREE.Scene) { scene.add(this.group); }
@@ -80,20 +84,45 @@ export class ItemManager {
       this.items.push(this.makeNote(p.x, p.z, notes[i].id, game.levelIndex));
     }
 
-    // Exit
+    // Exit — placed a short search away; re-anchors near the player if they roam
     if (lvl.exit === 'anomaly') {
-      const p = placeCell(900, 14, 20);
+      const p = placeCell(900, 8, 12);
       this.items.push(this.makeAnomaly(p.x, p.z));
     } else if (lvl.exit === 'vent') {
-      const p = placeCell(900, 14, 20);
+      const p = placeCell(900, 8, 12);
       this.items.push(this.makeVent(p.x, p.z));
     } else {
       // three valves spread out + the exit door
       for (let i = 0; i < 3; i++) {
-        const p = placeCell(910 + i, 10, 22);
+        const p = placeCell(910 + i, 7, 14);
         this.items.push(this.makeValve(p.x, p.z, VALVE_COLORS[i]));
       }
     }
+  }
+
+  /** Pick a reachable cell a few steps from a centre cell (graph distance). */
+  private pickReachableNear(game: Game, ccx: number, ccz: number, minSteps: number, maxSteps: number) {
+    const DX = [1, -1, 0, 0], DZ = [0, 0, 1, -1];
+    const m = game.maze;
+    const start = `${ccx},${ccz}`;
+    const depth = new Map<string, number>([[start, 0]]);
+    const q: [number, number][] = [[ccx, ccz]];
+    const hits: { cx: number; cz: number }[] = [];
+    while (q.length) {
+      const [cx, cz] = q.shift()!;
+      const d = depth.get(`${cx},${cz}`)!;
+      if (d >= minSteps && d <= maxSteps) hits.push({ cx, cz });
+      if (d >= maxSteps) continue;
+      for (let k = 0; k < 4; k++) {
+        const nx = cx + DX[k], nz = cz + DZ[k];
+        const key = `${nx},${nz}`;
+        if (depth.has(key)) continue;
+        if (!m.wallBetween(cx, cz, nx, nz)) { depth.set(key, d + 1); q.push([nx, nz]); }
+      }
+    }
+    if (hits.length === 0) return { cx: ccx, cz: ccz };
+    this.reanchorN = (this.reanchorN + 1) % hits.length;
+    return hits[this.reanchorN];
   }
 
   /** BFS over open edges from the spawn cell, bounded to a radius window. */
@@ -186,7 +215,7 @@ export class ItemManager {
     g.position.set(x, 1.4, z);
     this.group.add(g);
     return {
-      obj: g, x, z, range: 2.4, done: false,
+      obj: g, x, z, range: 2.4, done: false, isExit: true, baseY: 1.4,
       prompt: () => 'E · PUSH THROUGH THE ANOMALY',
       interact: (game) => game.descend(),
       tick: (_dt, t) => { mat.emissiveIntensity = 1.0 + Math.sin(t * 6) * 0.6; g.rotation.y = Math.sin(t * 0.6) * 0.3; g.scale.x = 1 + Math.sin(t * 3) * 0.08; },
@@ -203,7 +232,7 @@ export class ItemManager {
     g.add(frame); g.position.set(x, 0.9, z);
     this.group.add(g);
     return {
-      obj: g, x, z, range: 2.2, done: false,
+      obj: g, x, z, range: 2.2, done: false, isExit: true, baseY: 0.9,
       prompt: () => 'E · CRAWL INTO THE VENT',
       interact: (game) => game.descend(),
     };
@@ -257,7 +286,7 @@ export class ItemManager {
     g.add(frame); g.position.set(x, 1.3, z);
     this.group.add(g);
     this.items.push({
-      obj: g, x, z, range: 2.6, done: false,
+      obj: g, x, z, range: 2.6, done: false, isExit: true, baseY: 1.3,
       prompt: () => 'E · STEP INTO THE LIGHT',
       interact: (gm) => gm.reachEnding('good'),
       tick: (_dt, t) => { (glow.material as THREE.MeshBasicMaterial).color.setScalar(0.8 + Math.sin(t * 3) * 0.2); },
@@ -274,6 +303,28 @@ export class ItemManager {
   update(dt: number, game: Game) {
     this.t += dt;
     const px = game.controller.pos.x, pz = game.controller.pos.z;
+
+    // Re-anchor the level exit if the player has wandered too far from it, so
+    // the way down/out is always findable from wherever they are.
+    this.reanchorCD -= dt;
+    if (this.reanchorCD <= 0) {
+      this.reanchorCD = 1.2;
+      const FAR = CELL * 13;   // ~"a few chunks" away
+      const ccx = Math.floor(px / CELL), ccz = Math.floor(pz / CELL);
+      for (const it of this.items) {
+        if (!it.isExit || it.done) continue;
+        if (Math.hypot(it.x - px, it.z - pz) > FAR) {
+          const cell = this.pickReachableNear(game, ccx, ccz, 6, 9);
+          it.x = (cell.cx + 0.5) * CELL;
+          it.z = (cell.cz + 0.5) * CELL;
+          it.obj.position.x = it.x;
+          it.obj.position.z = it.z;
+          if (it.baseY != null) it.obj.position.y = it.baseY;
+          bus.emit('toast', { text: 'THE WAY OUT SHIFTS… IT IS NEAR AGAIN' });
+        }
+      }
+    }
+
     let best: Interactable | null = null; let bestD = Infinity;
     for (const it of this.items) {
       it.tick?.(dt, this.t);

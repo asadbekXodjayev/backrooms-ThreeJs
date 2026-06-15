@@ -80,6 +80,9 @@ export class PostFX {
   private renderer: THREE.WebGLRenderer;
   private time = 0;
   private reducedMotion: boolean;
+  private baseGrain = 0.06;
+  private noiseScale = 1; // lowered by the "reduce VHS noise" setting
+  private sanity = 1;
   enabled = true;
 
   constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, tier: QualityTier, reducedMotion: boolean) {
@@ -112,7 +115,8 @@ export class PostFX {
   setTier(tier: QualityTier) {
     this.bloom.enabled = tier >= 2;
     // potato: reduce grain/scanline cost-feel; the pass itself stays (cheap)
-    this.ff.uniforms.grain.value = tier <= 1 ? 0.04 : 0.06;
+    this.baseGrain = tier <= 1 ? 0.04 : 0.06;
+    this.applySanity();
     this.setSize();
   }
 
@@ -121,15 +125,28 @@ export class PostFX {
     this.ff.uniforms.enabled.value = on ? 1 : 0;
   }
 
+  /** Soften the found-footage noise (grain/scanlines/tracking) without removing it. */
+  setLowNoise(on: boolean) {
+    this.noiseScale = on ? 0.32 : 1;
+    this.applySanity();
+  }
+
   setReducedMotion(r: boolean) { this.reducedMotion = r; }
 
   /** sanity 0..1 → degrade the image as it drops. */
   setSanity(sanity: number) {
-    const s = 1 - sanity;
-    this.ff.uniforms.aberration.value = 0.0012 + s * 0.004;
+    this.sanity = sanity;
+    this.applySanity();
+  }
+
+  private applySanity() {
+    const s = 1 - this.sanity;
+    const n = this.noiseScale;
+    this.ff.uniforms.aberration.value = 0.0012 + s * 0.004 * (0.4 + 0.6 * n);
     this.ff.uniforms.vignette.value = 0.85 + s * 0.6;
-    this.ff.uniforms.vhs.value = this.reducedMotion ? s * 0.15 : s * s * 0.9;
-    this.ff.uniforms.scanline.value = this.reducedMotion ? 0.02 : 0.05 + s * 0.05;
+    this.ff.uniforms.grain.value = this.baseGrain * n;
+    this.ff.uniforms.vhs.value = (this.reducedMotion ? s * 0.15 : s * s * 0.9) * n;
+    this.ff.uniforms.scanline.value = (this.reducedMotion ? 0.02 : 0.05 + s * 0.05) * n;
     this.bloom.strength = 0.42 + s * 0.25;
   }
 

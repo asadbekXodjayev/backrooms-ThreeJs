@@ -10,6 +10,7 @@ export interface Settings {
   invertY: boolean;
   reducedMotion: boolean;
   vhs: boolean;
+  lowVhs: boolean; // reduce found-footage noise (grain/scanlines/tracking) without turning it off
 }
 
 const KEY = 'backrooms.settings.v1';
@@ -23,6 +24,7 @@ const DEFAULTS: Settings = {
   invertY: false,
   reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
   vhs: true,
+  lowVhs: false,
 };
 
 export function loadSettings(): Settings {
@@ -55,4 +57,5 @@ export function applySettings(s: Settings, game: Game) {
   game.audio?.setVolumes(s.master, s.ambience, s.sfx);
   // post (present after Phase 3)
   game.post?.setVHSEnabled(s.vhs);
+  game.post?.setLowNoise(s.lowVhs);
 }

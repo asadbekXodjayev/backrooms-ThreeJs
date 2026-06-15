@@ -75,8 +75,9 @@ export class Controller {
     const wantSprint = s.sprint && !this.crouching && inputLen > 0.1 && this.stamina > 0.02;
     let maxSpeed = this.crouching ? 1.5 : 2.7;
     if (wantSprint) maxSpeed = 4.7;
-    if (wantSprint) this.stamina = Math.max(0, this.stamina - dt * 0.32);
-    else this.stamina = Math.min(1, this.stamina + dt * (this.moving ? 0.12 : 0.22));
+    // sprint lasts ~7× longer than the original tuning (gentler drain)
+    if (wantSprint) this.stamina = Math.max(0, this.stamina - dt * 0.046);
+    else this.stamina = Math.min(1, this.stamina + dt * (this.moving ? 0.16 : 0.28));
 
     const vel = new THREE.Vector3();
     vel.addScaledVector(forward, mz);

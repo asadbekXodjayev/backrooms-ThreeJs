@@ -173,7 +173,7 @@ function buildSettings(settings: Settings, game: Game): HTMLElement {
   o.innerHTML = `
     <div class="panel">
       <div class="panel__kicker">SETTINGS</div>
-      <div class="panel__title" style="font-size:clamp(20px,5vw,30px)">CONFIGURATION</div>
+      <div class="panel__title panel__title--sm">CONFIGURATION</div>
       <div style="margin-top:18px">
         ${rangeRow('master', 'MASTER VOLUME', settings.master)}
         ${rangeRow('ambience', 'AMBIENCE', settings.ambience)}
@@ -187,6 +187,7 @@ function buildSettings(settings: Settings, game: Game): HTMLElement {
         <div class="row"><label>INVERT LOOK Y</label><button class="toggle" data-toggle="invertY" aria-pressed="${settings.invertY}">${settings.invertY ? 'ON' : 'OFF'}</button></div>
         <div class="row"><label>REDUCED MOTION</label><button class="toggle" data-toggle="reducedMotion" aria-pressed="${settings.reducedMotion}">${settings.reducedMotion ? 'ON' : 'OFF'}</button></div>
         <div class="row"><label>FOUND-FOOTAGE FILTER</label><button class="toggle" data-toggle="vhs" aria-pressed="${settings.vhs}">${settings.vhs ? 'ON' : 'OFF'}</button></div>
+        <div class="row"><label>REDUCE VHS NOISE</label><button class="toggle" data-toggle="lowVhs" aria-pressed="${settings.lowVhs}">${settings.lowVhs ? 'ON' : 'OFF'}</button></div>
       </div>
       <div class="btn-row" style="margin-top:22px"><button class="btn" data-act="close">DONE</button></div>
     </div>`;
@@ -222,7 +223,7 @@ function buildPause(): HTMLElement {
   o.innerHTML = `
     <div class="panel">
       <div class="panel__kicker">PAUSED · the hum continues</div>
-      <div class="panel__title" style="font-size:clamp(22px,6vw,36px)">STANDBY</div>
+      <div class="panel__title panel__title--sm">STANDBY</div>
       <div class="btn-row" style="margin-top:24px">
         <button class="btn" data-act="resume">RESUME ▸</button>
         <button class="btn btn--ghost" data-act="settings">SETTINGS</button>
