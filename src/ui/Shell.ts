@@ -196,7 +196,7 @@ function buildMenu(settings: Settings): HTMLElement {
         <button class="btn btn--ghost" data-act="settings">SETTINGS</button>
       </div>
       <div class="hint-keys">
-        <b>WASD</b> move · <b>MOUSE</b> look · <b>SHIFT</b> sprint · <b>C</b> crouch ·
+        <b>WASD</b> move · <b>MOUSE</b> look · <b>SPACE</b> jump · <b>SHIFT</b> sprint · <b>C</b> crouch ·
         <b>F</b> flashlight · <b>E</b> interact · <b>TAB</b> journal · <b>V</b> 3rd-person · <b>ESC</b> pause
       </div>
     </div>`;

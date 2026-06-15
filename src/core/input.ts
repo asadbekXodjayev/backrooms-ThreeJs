@@ -11,7 +11,9 @@ export interface InputState {
   // held
   sprint: boolean;
   crouch: boolean;
+  jump: boolean; // held — enables auto bunny-hop on landing
   // edge-triggered (true for exactly one frame)
+  jumpPressed: boolean;
   interactPressed: boolean;
   flashlightPressed: boolean;
   journalPressed: boolean;
@@ -23,7 +25,8 @@ export interface InputState {
 export class Input {
   state: InputState = {
     moveX: 0, moveZ: 0, lookX: 0, lookY: 0,
-    sprint: false, crouch: false,
+    sprint: false, crouch: false, jump: false,
+    jumpPressed: false,
     interactPressed: false, flashlightPressed: false, journalPressed: false,
     pausePressed: false, povPressed: false, anyPressed: false,
   };
@@ -45,7 +48,7 @@ export class Input {
   private touchLook = { active: false, id: -1, lastX: 0, lastY: 0 };
 
   // listeners we register on the touch overlay buttons
-  touchButtons = { sprint: false, crouch: false };
+  touchButtons = { sprint: false, crouch: false, jump: false };
 
   constructor(el: HTMLElement) {
     this.el = el;
@@ -62,10 +65,29 @@ export class Input {
     this.el.requestPointerLock?.();
   }
 
+  /**
+   * Layout-independent key token. Uses `e.code` (the physical key position,
+   * which is identical on QWERTY/AZERTY/ЙЦУКЕН/etc. hardware) so WASD lands on
+   * the same physical keys regardless of the OS keyboard language. Falls back to
+   * `e.key` only when `code` is missing (some IMEs / virtual keyboards).
+   */
+  private keyToken(e: KeyboardEvent): string {
+    const c = e.code;
+    if (c) {
+      if (c.startsWith('Key')) return c.slice(3).toLowerCase();   // KeyW -> w
+      if (c.startsWith('Digit')) return c.slice(5);               // Digit1 -> 1
+      if (c === 'ShiftLeft' || c === 'ShiftRight') return 'shift';
+      if (c === 'ControlLeft' || c === 'ControlRight') return 'control';
+      if (c === 'Space') return ' ';
+      return c.toLowerCase();                                     // ArrowUp -> arrowup, Tab, Escape…
+    }
+    return e.key.toLowerCase();
+  }
+
   private bindKeyboard() {
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return;
-      const k = e.key.toLowerCase();
+      const k = this.keyToken(e);
       this.keys.add(k);
       // edge actions — always listen (menu uses Esc etc.)
       if (k === 'e') this.edge.add('interact');
@@ -73,8 +95,9 @@ export class Input {
       if (k === 'tab') { this.edge.add('journal'); e.preventDefault(); }
       if (k === 'escape') this.edge.add('pause');
       if (k === 'v') this.edge.add('pov');
+      if (k === ' ') { this.edge.add('jump'); e.preventDefault(); } // Space = jump
     });
-    window.addEventListener('keyup', (e) => this.keys.delete(e.key.toLowerCase()));
+    window.addEventListener('keyup', (e) => this.keys.delete(this.keyToken(e)));
     window.addEventListener('blur', () => { this.keys.clear(); });
   }
 
@@ -147,6 +170,7 @@ export class Input {
     const s = this.state;
 
     // reset edges
+    s.jumpPressed = this.edge.has('jump');
     s.interactPressed = this.edge.has('interact');
     s.flashlightPressed = this.edge.has('flashlight');
     s.journalPressed = this.edge.has('journal');
@@ -178,6 +202,7 @@ export class Input {
 
     s.sprint = this.keys.has('shift') || this.touchButtons.sprint || gp.sprint;
     s.crouch = this.keys.has('c') || this.keys.has('control') || this.touchButtons.crouch || gp.crouch;
+    s.jump = this.keys.has(' ') || this.touchButtons.jump;
 
     // consume look
     const k = 0.0022 * this.sensitivity;

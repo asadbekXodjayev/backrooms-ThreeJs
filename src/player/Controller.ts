@@ -28,6 +28,13 @@ export class Controller {
   private eye = STAND_EYE;
   private bobPhase = 0;
   private lastBobSign = 1;
+  // vertical physics + bunny-hop chain
+  private posY = 0;          // feet height above the floor
+  private vy = 0;            // vertical velocity
+  private grounded = true;
+  private timeSinceLanded = 0;
+  private hopChain = 0;      // consecutive well-timed hops
+  private hopBoost = 1;      // horizontal speed multiplier earned by chaining
   private avatar: THREE.Group;
   private reducedMotion: boolean;
 
@@ -42,6 +49,8 @@ export class Controller {
     this.pos.set(x, 0, z);
     this.yaw = yaw; this.pitch = 0;
     this.stamina = 1;
+    this.posY = 0; this.vy = 0; this.grounded = true;
+    this.hopChain = 0; this.hopBoost = 1; this.timeSinceLanded = 0;
   }
 
   toggleThirdPerson(): boolean {
@@ -79,6 +88,33 @@ export class Controller {
     if (wantSprint) this.stamina = Math.max(0, this.stamina - dt * 0.046);
     else this.stamina = Math.min(1, this.stamina + dt * (this.moving ? 0.16 : 0.28));
 
+    // ── jump + bunny hop ─────────────────────────────────────────────────
+    // Space jumps. Holding Space auto-jumps the instant you land (auto-bhop);
+    // hops chained quickly while moving build a capped horizontal speed boost.
+    const GRAVITY = 22, JUMP_V = 5.4;
+    const wantJump = canMove && (s.jumpPressed || (s.jump && this.grounded));
+    if (this.grounded) {
+      this.timeSinceLanded += dt;
+      if (wantJump) {
+        this.vy = JUMP_V;
+        this.grounded = false;
+        // a hop that lands and re-launches within the window, while moving,
+        // keeps the chain alive and ramps the boost; otherwise it resets.
+        if (this.timeSinceLanded < 0.18 && this.moving) this.hopChain = Math.min(this.hopChain + 1, 10);
+        else this.hopChain = 0;
+        this.hopBoost = 1 + Math.min(this.hopChain * 0.05, 0.5); // up to +50%
+      } else if (this.timeSinceLanded > 0.22) {
+        // stopped hopping — bleed the momentum back to normal
+        this.hopChain = 0; this.hopBoost = 1;
+      }
+    }
+    if (!this.grounded) {
+      this.vy -= GRAVITY * dt;
+      this.posY += this.vy * dt;
+      if (this.posY <= 0) { this.posY = 0; this.vy = 0; this.grounded = true; this.timeSinceLanded = 0; }
+    }
+    maxSpeed *= this.hopBoost;
+
     const vel = new THREE.Vector3();
     vel.addScaledVector(forward, mz);
     vel.addScaledVector(right, mx);
@@ -95,7 +131,7 @@ export class Controller {
 
     // head-bob + footsteps
     let bobY = 0, bobRoll = 0;
-    if (this.moving && !this.reducedMotion) {
+    if (this.moving && this.grounded && !this.reducedMotion) {
       const rate = (wantSprint ? 11 : 7.5);
       this.bobPhase += dt * rate;
       const amp = (this.crouching ? 0.025 : 0.045) * (wantSprint ? 1.3 : 1);
@@ -104,7 +140,7 @@ export class Controller {
       const sign = Math.sign(Math.sin(this.bobPhase));
       if (sign !== this.lastBobSign && sign < 0) this.onFootstep?.(wantSprint);
       this.lastBobSign = sign;
-    } else if (this.moving) {
+    } else if (this.moving && this.grounded) {
       // reduced motion: still trigger footstep sounds on a timer-ish phase
       this.bobPhase += dt * 7;
       const sign = Math.sign(Math.sin(this.bobPhase));
@@ -113,7 +149,7 @@ export class Controller {
     }
 
     // place camera
-    const headY = this.eye + bobY;
+    const headY = this.eye + bobY + this.posY;
     cam.rotation.order = 'YXZ';
     if (!this.thirdPerson) {
       cam.position.set(this.pos.x, headY, this.pos.z);
@@ -133,7 +169,7 @@ export class Controller {
       cam.position.copy(camPos);
       cam.lookAt(head);
       // pose avatar
-      this.avatar.position.set(this.pos.x, 0, this.pos.z);
+      this.avatar.position.set(this.pos.x, this.posY, this.pos.z);
       this.avatar.rotation.y = this.yaw;
       const legSwing = Math.sin(this.bobPhase) * (this.moving ? 0.5 : 0);
       (this.avatar.userData.legL as THREE.Object3D).rotation.x = legSwing;

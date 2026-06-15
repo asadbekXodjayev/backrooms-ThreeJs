@@ -19,9 +19,10 @@ export class TouchControls {
     const btns = el('div', 'tbtns');
     const bSprint = el('div', 'tbtn', 'RUN');
     const bCrouch = el('div', 'tbtn', 'CROUCH');
+    const bJump = el('div', 'tbtn', 'JUMP');
     const bFlash = el('div', 'tbtn', 'LIGHT');
     const bUse = el('div', 'tbtn', 'USE');
-    btns.append(bFlash, bUse, bCrouch, bSprint);
+    btns.append(bFlash, bUse, bJump, bCrouch, bSprint);
 
     this.root.append(stick, btns);
     document.body.appendChild(this.root);
@@ -37,6 +38,8 @@ export class TouchControls {
     };
     hold(bSprint, () => (this.input.touchButtons.sprint = true), () => (this.input.touchButtons.sprint = false));
     hold(bCrouch, () => (this.input.touchButtons.crouch = true), () => (this.input.touchButtons.crouch = false));
+    // hold to auto bunny-hop; the edge fires the first jump immediately
+    hold(bJump, () => { this.input.queueEdge('jump'); this.input.touchButtons.jump = true; }, () => (this.input.touchButtons.jump = false));
     bFlash.addEventListener('pointerdown', (e) => { e.preventDefault(); this.input.queueEdge('flashlight'); });
     bUse.addEventListener('pointerdown', (e) => { e.preventDefault(); this.input.queueEdge('interact'); });
   }

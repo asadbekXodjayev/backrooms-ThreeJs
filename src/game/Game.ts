@@ -225,8 +225,8 @@ export class Game {
     // ── sanity: the master conductor ──────────────────────────────────────────
     const nearEntity = this.entity?.proximity ?? 0;
     if (playing) {
-      // battery
-      if (this.flashlight.on && this.battery > 0) this.battery = Math.max(0, this.battery - dt * 0.011 * this.diff.batteryDrainMult);
+      // battery — drains at half the old rate, so the light lasts ~2x as long
+      if (this.flashlight.on && this.battery > 0) this.battery = Math.max(0, this.battery - dt * 0.0055 * this.diff.batteryDrainMult);
       // sanity drain (whole rate scaled by difficulty)
       let drain = 0.0035;
       if (!this.flashlight.on || this.battery <= 0) drain += 0.013;

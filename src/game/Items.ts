@@ -82,10 +82,13 @@ export class ItemManager {
       const p = placeCell(200 + i, ring(3), ring(24));
       this.items.push(this.makeBattery(p.x, p.z));
     }
-    // Notes (story-fixed count — they carry codes — but still pulled in closer)
+    // Notes (story-fixed count — they carry codes — but still pulled in closer).
+    // On LEVEL 2 the notes hold the valve codes that open the exit door, so they
+    // spawn tight to the start rather than scattered across the level.
     const notes = NOTES_BY_LEVEL[game.levelIndex] ?? [];
+    const noteMaxRing = game.levelIndex === 2 ? ring(7) : ring(20);
     for (let i = 0; i < notes.length; i++) {
-      const p = placeCell(300 + i, ring(2), ring(20));
+      const p = placeCell(300 + i, ring(2), noteMaxRing);
       this.items.push(this.makeNote(p.x, p.z, notes[i].id, game.levelIndex));
     }
 
