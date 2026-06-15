@@ -1,11 +1,13 @@
 import { Game } from '../game/Game';
 import { QualityTier } from '../core/Engine';
+import { Difficulty } from '../game/Difficulty';
 
 export interface Settings {
   master: number;
   ambience: number;
   sfx: number;
   sensitivity: number;
+  difficulty: Difficulty;
   quality: 'auto' | '3' | '2' | '1' | '0';
   invertY: boolean;
   reducedMotion: boolean;
@@ -20,6 +22,7 @@ const DEFAULTS: Settings = {
   ambience: 0.9,
   sfx: 0.9,
   sensitivity: 1,
+  difficulty: 'normal',
   quality: 'auto',
   invertY: false,
   reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -42,6 +45,7 @@ export function saveSettings(s: Settings) {
 export function applySettings(s: Settings, game: Game) {
   game.input.sensitivity = s.sensitivity;
   game.input.invertY = s.invertY;
+  game.setDifficulty(s.difficulty);
   game.engine.prefersReducedMotion =
     s.reducedMotion || matchMedia('(prefers-reduced-motion: reduce)').matches;
 

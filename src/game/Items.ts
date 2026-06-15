@@ -43,6 +43,11 @@ export class ItemManager {
     const seed = game.maze.seed;
     const used = new Set<string>();
 
+    // difficulty: easier modes spawn more pickups, closer to the player
+    const dm = game.diff;
+    const count = (n: number) => Math.max(1, Math.round(n * dm.itemCountMult));
+    const ring = (r: number) => Math.max(1, Math.round(r * dm.spawnDistanceMult));
+
     // Flood-fill the connected component from spawn so EVERY item — especially
     // the exit — is provably reachable. Bucket reachable cells by ring distance.
     const reachable = this.reachableCells(game, 34);
@@ -68,33 +73,33 @@ export class ItemManager {
     };
 
     // Almond Water
-    for (let i = 0; i < lvl.almondWater; i++) {
-      const p = placeCell(100 + i, 2, 22);
+    for (let i = 0; i < count(lvl.almondWater); i++) {
+      const p = placeCell(100 + i, ring(2), ring(22));
       this.items.push(this.makeAlmond(p.x, p.z));
     }
     // Batteries
-    for (let i = 0; i < lvl.batteries; i++) {
-      const p = placeCell(200 + i, 3, 24);
+    for (let i = 0; i < count(lvl.batteries); i++) {
+      const p = placeCell(200 + i, ring(3), ring(24));
       this.items.push(this.makeBattery(p.x, p.z));
     }
-    // Notes
+    // Notes (story-fixed count — they carry codes — but still pulled in closer)
     const notes = NOTES_BY_LEVEL[game.levelIndex] ?? [];
     for (let i = 0; i < notes.length; i++) {
-      const p = placeCell(300 + i, 2, 20);
+      const p = placeCell(300 + i, ring(2), ring(20));
       this.items.push(this.makeNote(p.x, p.z, notes[i].id, game.levelIndex));
     }
 
     // Exit — placed a short search away; re-anchors near the player if they roam
     if (lvl.exit === 'anomaly') {
-      const p = placeCell(900, 8, 12);
+      const p = placeCell(900, ring(8), ring(12));
       this.items.push(this.makeAnomaly(p.x, p.z));
     } else if (lvl.exit === 'vent') {
-      const p = placeCell(900, 8, 12);
+      const p = placeCell(900, ring(8), ring(12));
       this.items.push(this.makeVent(p.x, p.z));
     } else {
       // three valves spread out + the exit door
       for (let i = 0; i < 3; i++) {
-        const p = placeCell(910 + i, 7, 14);
+        const p = placeCell(910 + i, ring(7), ring(14));
         this.items.push(this.makeValve(p.x, p.z, VALVE_COLORS[i]));
       }
     }

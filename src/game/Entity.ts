@@ -111,9 +111,9 @@ export class Entity {
     const linger = Math.min(1, this.lingerT / 8);
     const crouchHide = game.controller.crouching && !game.controller.moving ? 0.5 : 0;
     const baseStage = this.stage / 3;
-    this.aggression = THREE.MathUtils.clamp(
-      0.25 * baseStage + 0.4 * dark + 0.4 * lowSanity + 0.25 * linger - crouchHide, 0, 1,
-    );
+    // difficulty scales the drive to hunt; crouching stays a flat hide bonus
+    const drive = (0.25 * baseStage + 0.4 * dark + 0.4 * lowSanity + 0.25 * linger) * game.diff.entityAggroMult;
+    this.aggression = THREE.MathUtils.clamp(drive - crouchHide, 0, 1);
 
     // ── stage 1: heard only ──────────────────────────────────────────────────
     if (this.stage === 1) {
@@ -131,7 +131,8 @@ export class Entity {
     if (!this.active) {
       this.spawnCooldown -= dt * (0.5 + this.aggression);
       if (this.spawnCooldown <= 0) {
-        this.spawnNear(px, pz, this.stage >= 3 && this.aggression > 0.6 ? 7 : 12);
+        const baseDist = this.stage >= 3 && this.aggression > 0.6 ? 7 : 12;
+        this.spawnNear(px, pz, baseDist * game.diff.entitySpawnDistanceMult);
         if (!this.reduced) game.audio?.stinger(0.4 + this.aggression * 0.4);
         this.spawnCooldown = 10 + Math.random() * 10;
       }

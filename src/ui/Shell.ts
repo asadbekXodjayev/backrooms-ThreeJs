@@ -4,6 +4,7 @@ import { HUD } from './HUD';
 import { Journal } from './Journal';
 import { TouchControls } from './Touch';
 import { Settings, loadSettings, saveSettings, applySettings } from './settings';
+import { DIFFICULTIES, DIFFICULTY_ORDER, Difficulty } from '../game/Difficulty';
 
 function el(tag: string, cls?: string, html?: string): HTMLElement {
   const e = document.createElement(tag);
@@ -20,8 +21,11 @@ function el(tag: string, cls?: string, html?: string): HTMLElement {
 export function mountShell(game: Game, onReady: () => void, randomSeed: () => number) {
   const settings: Settings = loadSettings();
 
+  // difficulty must be live before the first level builds (it shifts entity stage)
+  game.setDifficulty(settings.difficulty);
+
   // ── overlays ────────────────────────────────────────────────────────────
-  const menu = buildMenu();
+  const menu = buildMenu(settings);
   const settingsPanel = buildSettings(settings, game);
   const pausePanel = buildPause();
   const fade = el('div'); fade.id = 'fade';
@@ -81,6 +85,28 @@ export function mountShell(game: Game, onReady: () => void, randomSeed: () => nu
     game.mode = 'menu';
     show(menu);
   }
+
+  // ── difficulty selector ─────────────────────────────────────────────────────
+  const diffBtns = Array.from(menu.querySelectorAll<HTMLButtonElement>('[data-diff]'));
+  const diffBlurb = menu.querySelector('.diff-blurb') as HTMLElement;
+  const paintDifficulty = (d: Difficulty) => {
+    diffBtns.forEach((b) => {
+      const on = b.dataset.diff === d;
+      b.classList.toggle('btn', on);
+      b.classList.toggle('btn--ghost', !on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    diffBlurb.textContent = DIFFICULTIES[d].blurb;
+  };
+  diffBtns.forEach((b) => b.addEventListener('click', () => {
+    const d = b.dataset.diff as Difficulty;
+    settings.difficulty = d;
+    saveSettings(settings);
+    game.setDifficulty(d);
+    game.audio?.click();
+    paintDifficulty(d);
+  }));
+  paintDifficulty(settings.difficulty);
 
   // ── menu buttons ──────────────────────────────────────────────────────────
   menu.querySelector('[data-act="enter"]')!.addEventListener('click', startGame);
@@ -147,8 +173,12 @@ function fadeTransition(fade: HTMLElement, mid: () => void) {
   setTimeout(() => { fade.classList.remove('show'); }, 1900);
 }
 
-function buildMenu(): HTMLElement {
+function buildMenu(settings: Settings): HTMLElement {
   const o = el('div', 'overlay show'); o.id = 'menu';
+  const diffButtons = DIFFICULTY_ORDER.map((d) => {
+    const on = settings.difficulty === d;
+    return `<button class="${on ? 'btn' : 'btn btn--ghost'}" data-diff="${d}" aria-pressed="${on}">${DIFFICULTIES[d].name}</button>`;
+  }).join('');
   o.innerHTML = `
     <div class="panel">
       <div class="panel__kicker">FOUND FOOTAGE · DO NOT DISTRIBUTE</div>
@@ -156,6 +186,11 @@ function buildMenu(): HTMLElement {
       <p class="panel__lede">You <em>noclipped</em> out of reality. Endless mono-yellow rooms,
       damp carpet, the buzz of dead fluorescent light. No doors. No people. Find a way down,
       and a way <em>out</em> — before your mind gives way to the hum.</p>
+      <div class="diff-select">
+        <div class="panel__kicker" style="margin-bottom:8px">DIFFICULTY</div>
+        <div class="btn-row" data-diff-row>${diffButtons}</div>
+        <p class="diff-blurb">${DIFFICULTIES[settings.difficulty].blurb}</p>
+      </div>
       <div class="btn-row">
         <button class="btn" data-act="enter">ENTER ▸</button>
         <button class="btn btn--ghost" data-act="settings">SETTINGS</button>

@@ -13,6 +13,7 @@ import { ItemManager } from './Items';
 import { Entity } from './Entity';
 import { ENDINGS } from './Story';
 import { randomSeed } from '../core/rng';
+import { Difficulty, DifficultyConfig, DIFFICULTIES } from './Difficulty';
 import type { HUD } from '../ui/HUD';
 import type { Journal, NoteData } from '../ui/Journal';
 
@@ -46,6 +47,9 @@ export class Game {
   seed = 1;
   levelIndex = 0;
   level!: LevelDef;
+
+  difficulty: Difficulty = 'normal';
+  diff: DifficultyConfig = DIFFICULTIES.normal;
 
   battery = 1;
   sanity = 1;
@@ -96,6 +100,12 @@ export class Game {
     });
   }
 
+  /** Set the active difficulty. Takes effect on the next loadLevel + every tick. */
+  setDifficulty(d: Difficulty) {
+    this.difficulty = d;
+    this.diff = DIFFICULTIES[d];
+  }
+
   loadLevel(index: number, seed: number) {
     this.levelIndex = index;
     this.level = LEVELS[index];
@@ -129,7 +139,9 @@ export class Game {
 
     // items + entity
     this.items.buildForLevel(this);
-    const stage = this.level.entityStageStart as 0 | 1 | 2 | 3;
+    const stage = THREE.MathUtils.clamp(
+      this.level.entityStageStart + this.diff.entityStageOffset, 0, 3,
+    ) as 0 | 1 | 2 | 3;
     if (!this.entity) this.entity = new Entity(this.engine.scene, this.maze, this.engine.prefersReducedMotion);
     else this.entity.setMaze(this.maze);
     this.entity.reset(stage);
@@ -165,7 +177,9 @@ export class Game {
 
   // ── progression API (called by items/entity) ───────────────────────────────
   addSanity(delta: number) {
-    this.sanity = THREE.MathUtils.clamp(this.sanity + delta, 0, 1);
+    // difficulty scales gains and losses independently
+    const scaled = delta >= 0 ? delta * this.diff.sanityGainMult : delta * this.diff.sanityDrainMult;
+    this.sanity = THREE.MathUtils.clamp(this.sanity + scaled, 0, 1);
     bus.emit('sanity:change', { value: this.sanity });
   }
 
@@ -212,11 +226,12 @@ export class Game {
     const nearEntity = this.entity?.proximity ?? 0;
     if (playing) {
       // battery
-      if (this.flashlight.on && this.battery > 0) this.battery = Math.max(0, this.battery - dt * 0.011);
-      // sanity drain
+      if (this.flashlight.on && this.battery > 0) this.battery = Math.max(0, this.battery - dt * 0.011 * this.diff.batteryDrainMult);
+      // sanity drain (whole rate scaled by difficulty)
       let drain = 0.0035;
       if (!this.flashlight.on || this.battery <= 0) drain += 0.013;
       drain += nearEntity * 0.045;
+      drain *= this.diff.sanityDrainMult;
       this.sanity = Math.max(0, this.sanity - drain * dt);
       if (this.sanity <= 0) this.reachEnding('bad_sanity');
     }
